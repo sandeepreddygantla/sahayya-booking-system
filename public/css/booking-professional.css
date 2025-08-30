@@ -1,0 +1,290 @@
+/*
+ * Professional Booking Form Styles
+ * Maximum specificity to override any theme conflicts
+ * Version: 3.0
+ */
+
+/* Keyframe Animations */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Force override with maximum specificity */
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 40px 30px !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    position: relative !important;
+    overflow-x: auto !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    min-height: 120px !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress::before {
+    content: '' !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    z-index: 1 !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    position: relative !important;
+    z-index: 3 !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    flex: 1 !important;
+    max-width: 120px !important;
+    text-align: center !important;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    cursor: pointer !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step:hover {
+    transform: translateY(-2px) !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step:hover .step-number {
+    transform: scale(1.1) !important;
+    box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3) !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step.disabled {
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step.disabled:hover {
+    transform: none !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step.error .step-number {
+    background: #e74c3c !important;
+    border-color: #c0392b !important;
+    color: white !important;
+    animation: shake 0.5s ease-in-out !important;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step .step-number {
+    width: 60px !important;
+    height: 60px !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 3px solid rgba(255, 255, 255, 0.3) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 800 !important;
+    font-size: 18px !important;
+    margin: 0 auto 15px auto !important;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step .step-title {
+    font-size: 13px !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    text-align: center !important;
+    font-weight: 600 !important;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1px !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.2 !important;
+}
+
+/* Active step styling */
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step.active .step-number {
+    background: rgba(255, 255, 255, 1) !important;
+    border-color: rgba(255, 255, 255, 1) !important;
+    color: #667eea !important;
+    transform: scale(1.15) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2), 0 0 0 4px rgba(255, 255, 255, 0.3) !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step.active .step-title {
+    color: rgba(255, 255, 255, 1) !important;
+    font-weight: 700 !important;
+    transform: translateY(-2px) !important;
+}
+
+/* Completed step styling */
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step.completed .step-number {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    border-color: #10b981 !important;
+    color: white !important;
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4), 0 0 0 4px rgba(16, 185, 129, 0.3) !important;
+    transform: scale(1.05) !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step.completed .step-number::after {
+    content: '✓' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    font-weight: 900 !important;
+    font-size: 20px !important;
+}
+
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step.completed .step-title {
+    color: rgba(255, 255, 255, 1) !important;
+    font-weight: 700 !important;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    html body .sahayya-booking-container .sahayya-booking-form .booking-progress {
+        padding: 25px 15px !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        gap: 15px !important;
+    }
+    
+    html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step {
+        min-width: 80px !important;
+        flex-shrink: 0 !important;
+    }
+    
+    html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step .step-number {
+        width: 45px !important;
+        height: 45px !important;
+        font-size: 14px !important;
+        margin-bottom: 8px !important;
+    }
+    
+    html body .sahayya-booking-container .sahayya-booking-form .booking-progress .progress-step .step-title {
+        font-size: 11px !important;
+    }
+}
+
+/* Remove any conflicting styles */
+html body .sahayya-booking-container .sahayya-booking-form .booking-progress * {
+    box-sizing: border-box !important;
+}
+
+/* Booking Success Message - Now positioned outside form container */
+html body .sahayya-booking-container .booking-success {
+    display: none !important;
+    text-align: center !important;
+    padding: 60px 40px !important;
+    background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%) !important;
+    color: white !important;
+    border-radius: 12px !important;
+    margin: 20px auto !important;
+    box-shadow: 0 10px 30px rgba(39, 174, 96, 0.3) !important;
+    max-width: 600px !important;
+    position: relative !important;
+    z-index: 10 !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 300px !important;
+}
+
+html body .sahayya-booking-container .booking-success .success-icon {
+    font-size: 72px !important;
+    color: white !important;
+    margin-bottom: 20px !important;
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+html body .sahayya-booking-container .booking-success h3 {
+    font-size: 2.2rem !important;
+    font-weight: 700 !important;
+    margin: 0 0 15px 0 !important;
+    color: white !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+html body .sahayya-booking-container .booking-success p {
+    font-size: 1.1rem !important;
+    margin: 0 0 25px 0 !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    line-height: 1.6 !important;
+}
+
+html body .sahayya-booking-container .booking-success .booking-details {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-radius: 8px !important;
+    padding: 20px !important;
+    margin: 25px 0 !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+html body .sahayya-booking-container .booking-success .booking-details p {
+    margin: 5px 0 !important;
+    font-size: 1rem !important;
+    color: white !important;
+}
+
+html body .sahayya-booking-container .booking-success .button {
+    background: white !important;
+    color: #27ae60 !important;
+    border: none !important;
+    padding: 15px 30px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 1rem !important;
+    text-decoration: none !important;
+    display: inline-block !important;
+    margin-top: 20px !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+html body .sahayya-booking-container .booking-success .button:hover {
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #229954 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Step Validation Error Messages */
+html body .sahayya-booking-container .step-validation-error {
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%) !important;
+    color: white !important;
+    padding: 15px 20px !important;
+    border-radius: 8px !important;
+    margin: 15px 0 !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3) !important;
+    animation: fadeInError 0.3s ease-in-out !important;
+}
+
+@keyframes fadeInError {
+    from {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}

@@ -1,0 +1,142 @@
+/* Sahayya Booking System - Admin Styles */
+
+.sahayya-dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.sahayya-stat-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.sahayya-stat-card h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 14px;
+}
+
+.stat-number {
+    font-size: 32px;
+    font-weight: bold;
+    color: #0073aa;
+}
+
+.sahayya-services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.service-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.service-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.service-image {
+    height: 150px;
+    background: #f9f9f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.service-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.no-image-placeholder {
+    color: #999;
+}
+
+.no-image-placeholder .dashicons {
+    font-size: 48px;
+}
+
+.service-content {
+    padding: 20px;
+}
+
+.service-content h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+}
+
+.service-description {
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.service-details {
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.service-details > div {
+    margin-bottom: 5px;
+}
+
+.service-status {
+    margin-bottom: 15px;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-inactive {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.availability-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    background: #007cba;
+    color: white;
+    border-radius: 3px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 5px;
+}
+
+.service-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.no-services-message {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
