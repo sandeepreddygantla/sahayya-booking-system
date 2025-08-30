@@ -406,14 +406,37 @@ class Sahayya_Booking_Services {
                             <label for="service_image"><?php _e('Service Image', 'sahayya-booking'); ?></label>
                         </th>
                         <td>
-                            <input type="file" id="service_image" name="service_image" accept="image/*" />
-                            <?php if ($is_edit && $service->service_image): ?>
-                                <p>
-                                    <img src="<?php echo esc_url($service->service_image); ?>" 
-                                         alt="<?php echo esc_attr($service->name); ?>" 
-                                         style="max-width: 150px; height: auto; display: block; margin-top: 10px;" />
+                            <div class="service-image-upload">
+                                <input type="hidden" id="service_image_id" name="service_image_id" value="<?php echo $is_edit ? get_post_meta(attachment_url_to_postid($service->service_image ?? ''), 'attachment_id', true) : ''; ?>" />
+                                <input type="hidden" id="service_image_url" name="service_image_url" value="<?php echo esc_attr($service->service_image ?? ''); ?>" />
+                                
+                                <div id="service-image-preview" style="margin-bottom: 10px;">
+                                    <?php if ($is_edit && !empty($service->service_image)): ?>
+                                        <img src="<?php echo esc_url($service->service_image); ?>" 
+                                             alt="<?php echo esc_attr($service->name); ?>" 
+                                             style="max-width: 200px; height: auto; border: 1px solid #ddd; border-radius: 4px;" />
+                                    <?php else: ?>
+                                        <div id="no-image-placeholder" style="width: 200px; height: 150px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #666; border-radius: 4px;">
+                                            <?php _e('No image selected', 'sahayya-booking'); ?>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <div class="image-controls">
+                                    <button type="button" class="button" id="upload-service-image">
+                                        <?php _e('Choose Image', 'sahayya-booking'); ?>
+                                    </button>
+                                    <button type="button" class="button" id="remove-service-image" style="margin-left: 10px; <?php echo (!$is_edit || empty($service->service_image)) ? 'display: none;' : ''; ?>">
+                                        <?php _e('Remove Image', 'sahayya-booking'); ?>
+                                    </button>
+                                </div>
+                                <p class="description">
+                                    <?php _e('Upload an image to represent this service. Recommended size: 400x300 pixels.', 'sahayya-booking'); ?>
                                 </p>
-                            <?php endif; ?>
+                            </div>
+                            
+                            <!-- Fallback file input (hidden) -->
+                            <input type="file" id="service_image_fallback" name="service_image" accept="image/*" style="display: none;" />
                         </td>
                     </tr>
                     
@@ -599,6 +622,66 @@ class Sahayya_Booking_Services {
         });
         </script>
         <?php endif; ?>
+        
+        <script type="text/javascript">
+        jQuery(document).ready(function($) {
+            // WordPress Media Library integration for service images
+            var mediaUploader;
+            
+            $('#upload-service-image').click(function(e) {
+                e.preventDefault();
+                
+                // If the uploader object has already been created, reopen the dialog
+                if (mediaUploader) {
+                    mediaUploader.open();
+                    return;
+                }
+                
+                // Extend the wp.media object
+                mediaUploader = wp.media.frames.file_frame = wp.media({
+                    title: '<?php _e('Choose Service Image', 'sahayya-booking'); ?>',
+                    button: {
+                        text: '<?php _e('Choose Image', 'sahayya-booking'); ?>'
+                    },
+                    multiple: false
+                });
+                
+                // When a file is selected, grab the URL and set it as the image src
+                mediaUploader.on('select', function() {
+                    var attachment = mediaUploader.state().get('selection').first().toJSON();
+                    
+                    $('#service_image_id').val(attachment.id);
+                    $('#service_image_url').val(attachment.url);
+                    
+                    // Update preview
+                    $('#service-image-preview').html(
+                        '<img src="' + attachment.url + '" style="max-width: 200px; height: auto; border: 1px solid #ddd; border-radius: 4px;" />'
+                    );
+                    
+                    $('#remove-service-image').show();
+                });
+                
+                // Open the uploader dialog
+                mediaUploader.open();
+            });
+            
+            $('#remove-service-image').click(function(e) {
+                e.preventDefault();
+                
+                $('#service_image_id').val('');
+                $('#service_image_url').val('');
+                
+                // Reset preview to placeholder
+                $('#service-image-preview').html(
+                    '<div id="no-image-placeholder" style="width: 200px; height: 150px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #666; border-radius: 4px;">' +
+                    '<?php _e('No image selected', 'sahayya-booking'); ?>' +
+                    '</div>'
+                );
+                
+                $(this).hide();
+            });
+        });
+        </script>
         <?php
     }
     
@@ -615,8 +698,12 @@ class Sahayya_Booking_Services {
     private function handle_add_service() {
         $service_data = $this->sanitize_service_data($_POST);
         
-        // Handle image upload
-        if (!empty($_FILES['service_image']['name'])) {
+        // Handle image upload (WordPress Media Library or direct file upload)
+        if (!empty($_POST['service_image_url'])) {
+            // WordPress Media Library image
+            $service_data['service_image'] = esc_url_raw($_POST['service_image_url']);
+        } elseif (!empty($_FILES['service_image']['name'])) {
+            // Direct file upload (fallback)
             $image_url = $this->handle_image_upload($_FILES['service_image']);
             if ($image_url) {
                 $service_data['service_image'] = $image_url;
@@ -638,12 +725,19 @@ class Sahayya_Booking_Services {
         $service_id = intval($_POST['service_id']);
         $service_data = $this->sanitize_service_data($_POST);
         
-        // Handle image upload
-        if (!empty($_FILES['service_image']['name'])) {
+        // Handle image upload (WordPress Media Library or direct file upload)
+        if (!empty($_POST['service_image_url'])) {
+            // WordPress Media Library image
+            $service_data['service_image'] = esc_url_raw($_POST['service_image_url']);
+        } elseif (!empty($_FILES['service_image']['name'])) {
+            // Direct file upload (fallback)
             $image_url = $this->handle_image_upload($_FILES['service_image']);
             if ($image_url) {
                 $service_data['service_image'] = $image_url;
             }
+        } elseif (isset($_POST['service_image_url']) && empty($_POST['service_image_url'])) {
+            // Image was removed
+            $service_data['service_image'] = '';
         }
         
         $result = Sahayya_Booking_Database::update_service($service_id, $service_data);
