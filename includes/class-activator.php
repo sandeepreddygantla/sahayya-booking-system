@@ -7,23 +7,31 @@ if (!defined('ABSPATH')) {
 class Sahayya_Booking_Activator {
     
     public static function activate() {
+        // Enable error logging for debugging
+        error_log('Sahayya Booking System: Activation started');
+
         // Create database tables
         self::create_tables();
-        
+
         // Create user roles
         self::create_roles();
-        
+
         // Set default options
         self::set_default_options();
-        
+
         // Flush rewrite rules
         flush_rewrite_rules();
+
+        error_log('Sahayya Booking System: Activation completed');
     }
     
     private static function create_tables() {
         global $wpdb;
-        
+
+        error_log('Sahayya: create_tables() called');
+
         $charset_collate = $wpdb->get_charset_collate();
+        error_log('Sahayya: charset_collate = ' . $charset_collate);
         
         // Services table (enhanced for group bookings)
         $table_services = $wpdb->prefix . 'sahayya_services';
@@ -261,18 +269,38 @@ class Sahayya_Booking_Activator {
          */
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        error_log('Sahayya: upgrade.php loaded, starting dbDelta calls');
 
         // Create all actively used tables
-        dbDelta($sql_services);
-        dbDelta($sql_categories);
-        dbDelta($sql_dependents);
-        dbDelta($sql_bookings);
-        dbDelta($sql_employees);
-        dbDelta($sql_service_extras);
-        dbDelta($sql_booking_extras);
-        dbDelta($sql_invoices);
-        dbDelta($sql_invoice_items);
-        dbDelta($sql_email_notifications);
+        $result = dbDelta($sql_services);
+        error_log('Sahayya: Services table result: ' . print_r($result, true));
+
+        $result = dbDelta($sql_categories);
+        error_log('Sahayya: Categories table result: ' . print_r($result, true));
+
+        $result = dbDelta($sql_dependents);
+        error_log('Sahayya: Dependents table result: ' . print_r($result, true));
+
+        $result = dbDelta($sql_bookings);
+        error_log('Sahayya: Bookings table result: ' . print_r($result, true));
+
+        $result = dbDelta($sql_employees);
+        error_log('Sahayya: Employees table result: ' . print_r($result, true));
+
+        $result = dbDelta($sql_service_extras);
+        error_log('Sahayya: Service extras table result: ' . print_r($result, true));
+
+        $result = dbDelta($sql_booking_extras);
+        error_log('Sahayya: Booking extras table result: ' . print_r($result, true));
+
+        $result = dbDelta($sql_invoices);
+        error_log('Sahayya: Invoices table result: ' . print_r($result, true));
+
+        $result = dbDelta($sql_invoice_items);
+        error_log('Sahayya: Invoice items table result: ' . print_r($result, true));
+
+        $result = dbDelta($sql_email_notifications);
+        error_log('Sahayya: Email notifications table result: ' . print_r($result, true));
         
         // Email logs table
         $table_email_logs = $wpdb->prefix . 'sahayya_email_logs';
