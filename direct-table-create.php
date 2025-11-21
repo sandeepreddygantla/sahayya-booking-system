@@ -6,9 +6,35 @@
  */
 
 // Load WordPress config to get database credentials
-$wp_config_path = __DIR__ . '/../../../../wp-config.php';
-if (!file_exists($wp_config_path)) {
-    die('Cannot find wp-config.php');
+// Try multiple possible paths
+$possible_paths = array(
+    __DIR__ . '/../../../../wp-config.php',
+    __DIR__ . '/../../../wp-config.php',
+    __DIR__ . '/../../wp-config.php',
+    '/var/www/html/wp-config.php',
+    '/app/wp-config.php',
+);
+
+$wp_config_path = null;
+foreach ($possible_paths as $path) {
+    if (file_exists($path)) {
+        $wp_config_path = $path;
+        break;
+    }
+}
+
+if (!$wp_config_path) {
+    echo '<h1>Searching for wp-config.php</h1>';
+    echo '<p>Tried these paths:</p><ul>';
+    foreach ($possible_paths as $path) {
+        echo '<li>' . $path . ' - ' . (file_exists($path) ? 'EXISTS' : 'NOT FOUND') . '</li>';
+    }
+    echo '</ul>';
+    echo '<p>Current directory: ' . __DIR__ . '</p>';
+    echo '<p>Contents of parent directory:</p><pre>';
+    print_r(scandir(__DIR__ . '/../../../../'));
+    echo '</pre>';
+    die('Cannot find wp-config.php in any expected location');
 }
 
 require_once($wp_config_path);
