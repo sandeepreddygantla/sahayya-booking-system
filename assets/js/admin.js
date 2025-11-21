@@ -1,9 +1,7 @@
 // Sahayya Booking System - Admin JavaScript
 
 jQuery(document).ready(function($) {
-    
-    console.log('Sahayya Booking System Admin Loaded');
-    
+
     // Image upload handling
     $('.upload-image-button').click(function(e) {
         e.preventDefault();

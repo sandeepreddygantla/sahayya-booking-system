@@ -502,12 +502,18 @@ class Sahayya_Employee_Dashboard {
     private function get_today_bookings($user_id) {
         global $wpdb;
         
+        // Get employee record from WordPress user ID
+        $employee_record = Sahayya_Booking_Database::get_employee_by_user_id($user_id);
+        if (!$employee_record) {
+            return array();
+        }
+        
         $table = $wpdb->prefix . 'sahayya_bookings';
         $today = date('Y-m-d');
         
         return $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM $table WHERE assigned_employee_id = %d AND booking_date = %s ORDER BY booking_time ASC",
-            $user_id, $today
+            $employee_record->id, $today
         ));
     }
     

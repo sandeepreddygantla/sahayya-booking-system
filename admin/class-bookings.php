@@ -9,24 +9,22 @@ class Sahayya_Booking_Bookings {
     public function render_page() {
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
         $booking_id = isset($_GET['booking_id']) ? intval($_GET['booking_id']) : 0;
-        
+
+        // Note: Cancel action is now handled early in admin_init hook (see class-admin.php)
+        // to prevent "headers already sent" issues
+
         // Handle form submissions
         if (isset($_POST['submit']) && wp_verify_nonce($_POST['_wpnonce'], 'sahayya_booking_action')) {
             $this->handle_form_submission();
+            return; // Form handler redirects and exits
         }
-        
+
         switch ($action) {
             case 'view':
                 $this->render_booking_details($booking_id);
                 break;
-            case 'edit':
-                $this->render_edit_booking_form($booking_id);
-                break;
             case 'assign':
                 $this->render_assign_employee_form($booking_id);
-                break;
-            case 'cancel':
-                $this->handle_cancel_booking($booking_id);
                 break;
             default:
                 $this->render_bookings_list();
@@ -139,7 +137,15 @@ class Sahayya_Booking_Bookings {
                             $customer = get_userdata($booking->subscriber_id);
                             $service = Sahayya_Booking_Database::get_service($booking->service_id);
                             $dependent_ids = json_decode($booking->dependent_ids, true);
-                            $employee = $booking->assigned_employee_id ? get_userdata($booking->assigned_employee_id) : null;
+                            
+                            // Get employee details correctly
+                            $employee = null;
+                            if ($booking->assigned_employee_id) {
+                                $employee_record = Sahayya_Booking_Database::get_employee($booking->assigned_employee_id);
+                                if ($employee_record) {
+                                    $employee = get_userdata($employee_record->user_id);
+                                }
+                            }
                             
                             $dependent_names = array();
                             if (!empty($dependent_ids)) {
@@ -223,19 +229,18 @@ class Sahayya_Booking_Bookings {
                                 </td>
                                 <td class="column-actions">
                                     <div class="action-buttons">
-                                        <a href="<?php echo admin_url('admin.php?page=sahayya-booking-bookings&action=view&booking_id=' . $booking->id); ?>" 
+                                        <a href="<?php echo admin_url('admin.php?page=sahayya-booking-bookings&action=view&booking_id=' . $booking->id); ?>"
                                            class="button button-small"><?php _e('View', 'sahayya-booking'); ?></a>
-                                        
-                                        <?php if (in_array($booking->booking_status, ['pending', 'confirmed', 'assigned'])): ?>
-                                            <a href="<?php echo admin_url('admin.php?page=sahayya-booking-bookings&action=edit&booking_id=' . $booking->id); ?>" 
-                                               class="button button-small"><?php _e('Edit', 'sahayya-booking'); ?></a>
-                                        <?php endif; ?>
-                                        
+
                                         <?php if ($booking->booking_status !== 'cancelled'): ?>
-                                            <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=sahayya-booking-bookings&action=cancel&booking_id=' . $booking->id), 'cancel_booking_' . $booking->id); ?>" 
-                                               class="button button-small button-link-delete" 
+                                            <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=sahayya-booking-bookings&action=cancel&booking_id=' . $booking->id), 'cancel_booking_' . $booking->id); ?>"
+                                               class="button button-small button-link-delete"
                                                onclick="return confirm('<?php _e('Are you sure you want to cancel this booking?', 'sahayya-booking'); ?>')"><?php _e('Cancel', 'sahayya-booking'); ?></a>
                                         <?php endif; ?>
+
+                                        <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=sahayya-booking-bookings&action=delete&booking_id=' . $booking->id), 'delete_booking_' . $booking->id); ?>"
+                                           class="button button-small button-link-delete"
+                                           onclick="return confirm('<?php _e('Are you sure you want to permanently delete this booking? This action cannot be undone.', 'sahayya-booking'); ?>')"><?php _e('Delete', 'sahayya-booking'); ?></a>
                                     </div>
                                 </td>
                             </tr>
@@ -414,7 +419,16 @@ class Sahayya_Booking_Bookings {
         
         $customer = get_userdata($booking->subscriber_id);
         $service = Sahayya_Booking_Database::get_service($booking->service_id);
-        $employee = $booking->assigned_employee_id ? get_userdata($booking->assigned_employee_id) : null;
+        
+        // Get employee details correctly
+        $employee = null;
+        if ($booking->assigned_employee_id) {
+            $employee_record = Sahayya_Booking_Database::get_employee($booking->assigned_employee_id);
+            if ($employee_record) {
+                $employee = get_userdata($employee_record->user_id);
+            }
+        }
+        
         $dependent_ids = json_decode($booking->dependent_ids, true);
         
         $dependents = array();
@@ -574,19 +588,19 @@ class Sahayya_Booking_Bookings {
             <div class="booking-actions">
                 <h3><?php _e('Actions', 'sahayya-booking'); ?></h3>
                 <div class="action-buttons">
-                    <?php if (in_array($booking->booking_status, ['pending', 'confirmed', 'assigned'])): ?>
-                        <a href="<?php echo admin_url('admin.php?page=sahayya-booking-bookings&action=edit&booking_id=' . $booking->id); ?>" class="button button-primary">
-                            <?php _e('Edit Booking', 'sahayya-booking'); ?>
-                        </a>
-                    <?php endif; ?>
-                    
                     <?php if ($booking->booking_status !== 'cancelled'): ?>
-                        <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=sahayya-booking-bookings&action=cancel&booking_id=' . $booking->id), 'cancel_booking_' . $booking->id); ?>" 
-                           class="button button-link-delete" 
+                        <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=sahayya-booking-bookings&action=cancel&booking_id=' . $booking->id), 'cancel_booking_' . $booking->id); ?>"
+                           class="button button-link-delete"
                            onclick="return confirm('<?php _e('Are you sure you want to cancel this booking?', 'sahayya-booking'); ?>')">
                             <?php _e('Cancel Booking', 'sahayya-booking'); ?>
                         </a>
                     <?php endif; ?>
+
+                    <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=sahayya-booking-bookings&action=delete&booking_id=' . $booking->id), 'delete_booking_' . $booking->id); ?>"
+                       class="button button-link-delete"
+                       onclick="return confirm('<?php _e('Are you sure you want to permanently delete this booking? This action cannot be undone.', 'sahayya-booking'); ?>')">
+                        <?php _e('Delete Booking', 'sahayya-booking'); ?>
+                    </a>
                 </div>
             </div>
         </div>
@@ -659,14 +673,23 @@ class Sahayya_Booking_Bookings {
     private function show_messages() {
         if (isset($_GET['message'])) {
             $message = sanitize_text_field($_GET['message']);
-            $messages = array(
-                'booking_updated' => __('Booking updated successfully!', 'sahayya-booking'),
-                'employee_assigned' => __('Employee assigned successfully!', 'sahayya-booking'),
-                'booking_cancelled' => __('Booking cancelled successfully!', 'sahayya-booking')
-            );
             
-            if (isset($messages[$message])) {
-                echo '<div class="notice notice-success is-dismissible"><p>' . $messages[$message] . '</p></div>';
+            if ($message === 'employee_assigned') {
+                $employee_name = isset($_GET['employee_name']) ? sanitize_text_field($_GET['employee_name']) : 'Employee';
+                $success_message = sprintf(__('%s has been assigned to the booking successfully!', 'sahayya-booking'), $employee_name);
+                echo '<div class="notice notice-success is-dismissible"><p>' . $success_message . '</p></div>';
+            } else {
+                $messages = array(
+                    'booking_updated' => __('Booking updated successfully!', 'sahayya-booking'),
+                    'booking_cancelled' => __('Booking cancelled successfully!', 'sahayya-booking'),
+                    'booking_deleted' => __('Booking deleted successfully!', 'sahayya-booking'),
+                    'already_cancelled' => __('This booking is already cancelled.', 'sahayya-booking')
+                );
+
+                if (isset($messages[$message])) {
+                    $notice_type = $message === 'already_cancelled' ? 'notice-info' : 'notice-success';
+                    echo '<div class="notice ' . $notice_type . ' is-dismissible"><p>' . $messages[$message] . '</p></div>';
+                }
             }
         }
         
@@ -674,7 +697,10 @@ class Sahayya_Booking_Bookings {
             $error = sanitize_text_field($_GET['error']);
             $errors = array(
                 'db_error' => __('Database error occurred. Please try again.', 'sahayya-booking'),
-                'cancel_failed' => __('Failed to cancel booking. Please try again.', 'sahayya-booking')
+                'cancel_failed' => __('Failed to cancel booking. Please try again.', 'sahayya-booking'),
+                'delete_failed' => __('Failed to delete booking. Please try again.', 'sahayya-booking'),
+                'missing_data' => __('Missing required data for assignment. Please try again.', 'sahayya-booking'),
+                'assignment_failed' => __('Failed to assign employee. Please try again.', 'sahayya-booking')
             );
             
             if (isset($errors[$error])) {
@@ -729,44 +755,52 @@ class Sahayya_Booking_Bookings {
             exit;
         }
         
+        // Get employee details before assignment
+        $employee_record = Sahayya_Booking_Database::get_employee($employee_id);
+        $employee_name = 'Unknown Employee';
+        if ($employee_record) {
+            $user = get_userdata($employee_record->user_id);
+            $employee_name = $user ? $user->display_name : 'Employee #' . $employee_id;
+        }
+        
         // Assign employee to booking
         $result = Sahayya_Booking_Database::assign_employee($booking_id, $employee_id);
         
         if ($result !== false) {
-            wp_redirect(admin_url('admin.php?page=sahayya-booking-bookings&message=employee_assigned'));
+            wp_redirect(admin_url('admin.php?page=sahayya-booking-bookings&message=employee_assigned&employee_name=' . urlencode($employee_name)));
         } else {
             wp_redirect(admin_url('admin.php?page=sahayya-booking-bookings&error=assignment_failed'));
         }
         exit;
     }
-    
+
     private function render_assign_employee_form($booking_id) {
         $booking = Sahayya_Booking_Database::get_booking($booking_id);
         if (!$booking) {
             wp_die(__('Booking not found.', 'sahayya-booking'));
         }
-        
+
         // Get available employees
         global $wpdb;
         $employees_table = $wpdb->prefix . 'sahayya_employees';
         $employees = $wpdb->get_results("SELECT * FROM $employees_table WHERE status = 'active'");
-        
+
         ?>
         <div class="wrap">
             <h1><?php _e('Assign Employee', 'sahayya-booking'); ?></h1>
-            
+
             <div class="booking-info">
                 <h3><?php _e('Booking Details', 'sahayya-booking'); ?></h3>
                 <p><strong><?php _e('Booking Number:', 'sahayya-booking'); ?></strong> <?php echo esc_html($booking->booking_number); ?></p>
                 <p><strong><?php _e('Date:', 'sahayya-booking'); ?></strong> <?php echo date('M j, Y', strtotime($booking->booking_date)); ?></p>
                 <p><strong><?php _e('Time:', 'sahayya-booking'); ?></strong> <?php echo date('g:i A', strtotime($booking->booking_time)); ?></p>
             </div>
-            
+
             <form method="post">
                 <?php wp_nonce_field('sahayya_booking_action'); ?>
                 <input type="hidden" name="action" value="assign_employee" />
                 <input type="hidden" name="booking_id" value="<?php echo esc_attr($booking->id); ?>" />
-                
+
                 <table class="form-table">
                     <tbody>
                         <tr>
@@ -778,11 +812,11 @@ class Sahayya_Booking_Bookings {
                                     <option value=""><?php _e('-- Select Employee --', 'sahayya-booking'); ?></option>
                                     <?php if (!empty($employees)): ?>
                                         <?php foreach ($employees as $employee): ?>
-                                            <option value="<?php echo esc_attr($employee->id); ?>" 
+                                            <option value="<?php echo esc_attr($employee->id); ?>"
                                                     <?php selected($booking->assigned_employee_id, $employee->id); ?>>
-                                                <?php 
+                                                <?php
                                                 $user = get_user_by('id', $employee->user_id);
-                                                echo esc_html($user ? $user->display_name : 'Employee #' . $employee->id); 
+                                                echo esc_html($user ? $user->display_name : 'Employee #' . $employee->id);
                                                 ?>
                                             </option>
                                         <?php endforeach; ?>
@@ -794,9 +828,9 @@ class Sahayya_Booking_Bookings {
                         </tr>
                     </tbody>
                 </table>
-                
+
                 <p class="submit">
-                    <input type="submit" name="submit" class="button button-primary" 
+                    <input type="submit" name="submit" class="button button-primary"
                            value="<?php _e('Assign Employee', 'sahayya-booking'); ?>" />
                     <a href="<?php echo admin_url('admin.php?page=sahayya-booking-bookings'); ?>" class="button">
                         <?php _e('Cancel', 'sahayya-booking'); ?>

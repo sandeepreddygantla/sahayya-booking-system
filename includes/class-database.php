@@ -185,22 +185,15 @@ class Sahayya_Booking_Database {
         // First check if table exists
         $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table'");
         if (!$table_exists) {
-            error_log('Table does not exist: ' . $table);
             return false;
         }
-        
+
         $result = $wpdb->insert($table, $data);
-        
+
         if ($result) {
             return $wpdb->insert_id;
         }
-        
-        // Log detailed error info
-        error_log('Booking creation failed. Result: ' . var_export($result, true));
-        error_log('WordPress error: ' . $wpdb->last_error);
-        error_log('Data: ' . print_r($data, true));
-        error_log('Table: ' . $table);
-        
+
         return false;
     }
     
@@ -261,9 +254,9 @@ class Sahayya_Booking_Database {
     
     public static function assign_employee($booking_id, $employee_id) {
         global $wpdb;
-        
+
         $table = $wpdb->prefix . 'sahayya_bookings';
-        
+
         return $wpdb->update(
             $table,
             array(
@@ -273,7 +266,26 @@ class Sahayya_Booking_Database {
             array('id' => $booking_id)
         );
     }
-    
+
+    public static function delete_booking($booking_id) {
+        global $wpdb;
+
+        $booking_id = intval($booking_id);
+
+        // Delete related records first (foreign key cascade)
+        $wpdb->delete($wpdb->prefix . 'sahayya_booking_extras', array('booking_id' => $booking_id));
+        $wpdb->delete($wpdb->prefix . 'sahayya_invoice_items', array('invoice_id' => $booking_id));
+        $wpdb->delete($wpdb->prefix . 'sahayya_invoices', array('booking_id' => $booking_id));
+        $wpdb->delete($wpdb->prefix . 'sahayya_booking_custom_data', array('booking_id' => $booking_id));
+
+        // Finally delete the booking
+        return $wpdb->delete(
+            $wpdb->prefix . 'sahayya_bookings',
+            array('id' => $booking_id),
+            array('%d')
+        );
+    }
+
     public static function get_dependent($id) {
         global $wpdb;
         

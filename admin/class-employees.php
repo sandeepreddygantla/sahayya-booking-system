@@ -159,7 +159,7 @@ class Sahayya_Booking_Employees {
                                     </button>
                                 <?php endif; ?>
                                 
-                                <button class="button button-small button-link-delete delete-employee" data-employee-id="<?php echo $employee->id; ?>" data-name="<?php echo esc_attr($employee->display_name); ?>">
+                                <button class="button button-small button-link-delete delete-employee" data-employee-id="<?php echo $employee->id; ?>" data-name="<?php echo esc_attr($employee->display_name); ?>" data-nonce="<?php echo wp_create_nonce('delete_employee_' . $employee->id); ?>">
                                     <?php _e('Delete', 'sahayya-booking'); ?>
                                 </button>
                             </div>
@@ -1403,9 +1403,11 @@ class Sahayya_Booking_Employees {
             $('.delete-employee').on('click', function() {
                 var employeeId = $(this).data('employee-id');
                 var employeeName = $(this).data('name');
-                
+
                 if (confirm('Are you sure you want to delete employee "' + employeeName + '"? This action cannot be undone.')) {
-                    var deleteUrl = '<?php echo admin_url('admin.php?page=sahayya-booking-employees&action=delete_employee&employee_id='); ?>' + employeeId + '&_wpnonce=' + '<?php echo wp_create_nonce('delete_employee_'); ?>' + employeeId;
+                    // Create nonce with employee ID on server side for each employee
+                    var nonce = $(this).data('nonce');
+                    var deleteUrl = '<?php echo admin_url('admin.php?page=sahayya-booking-employees&action=delete_employee&employee_id='); ?>' + employeeId + '&_wpnonce=' + nonce;
                     window.location.href = deleteUrl;
                 }
             });

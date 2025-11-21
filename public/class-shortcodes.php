@@ -349,17 +349,48 @@ class Sahayya_Booking_Shortcodes {
     }
     
     public function enqueue_booking_scripts() {
-        // Check if we're on the booking page
+        // Check if we're on any Sahayya page
         global $wp;
         $current_url = home_url($wp->request);
-        if (strpos($current_url, 'book-a-service') === false) {
+
+        $is_booking_page = strpos($current_url, 'book-a-service') !== false;
+        $is_my_bookings = strpos($current_url, 'my-bookings') !== false;
+        $is_my_account = strpos($current_url, 'my-account') !== false;
+        $is_dashboard = strpos($current_url, 'dashboard') !== false;
+
+        // Enqueue account management styles and scripts for account-related pages
+        if ($is_my_bookings || $is_my_account || $is_dashboard) {
+            wp_enqueue_style(
+                'sahayya-account-management',
+                SAHAYYA_BOOKING_PLUGIN_URL . 'public/css/account-management.css',
+                array(),
+                SAHAYYA_BOOKING_VERSION
+            );
+
+            wp_enqueue_script(
+                'sahayya-account-management',
+                SAHAYYA_BOOKING_PLUGIN_URL . 'public/js/account-management.js',
+                array('jquery'),
+                SAHAYYA_BOOKING_VERSION,
+                true
+            );
+
+            // Localize script for AJAX
+            wp_localize_script('sahayya-account-management', 'sahayya_ajax', array(
+                'ajax_url' => admin_url('admin-ajax.php'),
+                'nonce' => wp_create_nonce('sahayya_booking_nonce')
+            ));
+        }
+
+        // Only enqueue booking-specific scripts on the booking page
+        if (!$is_booking_page) {
             return;
         }
         
         // Enqueue professional booking CSS with maximum priority
         wp_enqueue_style(
             'sahayya-booking-professional',
-            plugin_dir_url(__FILE__) . 'css/booking-professional.css',
+            SAHAYYA_BOOKING_PLUGIN_URL . 'public/css/booking-professional.css',
             array(),
             '3.1.0'
         );
@@ -1123,6 +1154,426 @@ class Sahayya_Booking_Shortcodes {
         wp_add_inline_script('jquery', $inline_script);
     }
     
+    public function render_my_bookings($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="sahayya-login-notice">
+                <p>' . __('Please login to view your bookings.', 'sahayya-booking') . '</p>
+                <a href="' . wp_login_url(get_permalink()) . '" class="button button-primary">' . __('Login', 'sahayya-booking') . '</a>
+            </div>';
+        }
+
+        $user_id = get_current_user_id();
+
+        // Get all bookings for the current user
+        global $wpdb;
+        $bookings_table = $wpdb->prefix . 'sahayya_bookings';
+        $services_table = $wpdb->prefix . 'sahayya_services';
+        $employees_table = $wpdb->prefix . 'sahayya_employees';
+
+        $bookings = $wpdb->get_results($wpdb->prepare("
+            SELECT b.*,
+                   s.name as service_name,
+                   s.service_image,
+                   u.display_name as employee_name,
+                   e.phone as employee_phone
+            FROM $bookings_table b
+            LEFT JOIN $services_table s ON b.service_id = s.id
+            LEFT JOIN $employees_table e ON b.assigned_employee_id = e.id
+            LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+            WHERE b.subscriber_id = %d
+            ORDER BY b.created_at DESC
+        ", $user_id));
+
+        ob_start();
+        ?>
+        <div class="sahayya-my-bookings-container">
+            <div class="bookings-header">
+                <h3><?php _e('My Bookings', 'sahayya-booking'); ?></h3>
+                <p><?php _e('View and manage your service bookings', 'sahayya-booking'); ?></p>
+            </div>
+
+            <?php if (!empty($bookings)): ?>
+                <div class="bookings-grid">
+                    <?php foreach ($bookings as $booking): ?>
+                        <?php
+                        $status_class = 'status-' . $booking->booking_status;
+                        $can_cancel = in_array($booking->booking_status, ['pending', 'assigned']);
+                        $can_modify = in_array($booking->booking_status, ['pending']);
+                        ?>
+                        <div class="booking-card <?php echo esc_attr($status_class); ?>" data-booking-id="<?php echo $booking->id; ?>">
+                            <div class="booking-card-header">
+                                <div class="booking-number">
+                                    <span class="label"><?php _e('Booking #', 'sahayya-booking'); ?></span>
+                                    <span class="value"><?php echo esc_html($booking->booking_number); ?></span>
+                                </div>
+                                <span class="status-badge status-<?php echo esc_attr($booking->booking_status); ?>">
+                                    <?php echo esc_html(ucfirst($booking->booking_status)); ?>
+                                </span>
+                            </div>
+
+                            <div class="booking-card-body">
+                                <?php if ($booking->service_image): ?>
+                                    <div class="service-image">
+                                        <img src="<?php echo esc_url($booking->service_image); ?>" alt="<?php echo esc_attr($booking->service_name); ?>" />
+                                    </div>
+                                <?php endif; ?>
+
+                                <div class="booking-details">
+                                    <h4 class="service-name"><?php echo esc_html($booking->service_name); ?></h4>
+
+                                    <div class="detail-row">
+                                        <span class="icon dashicons dashicons-calendar"></span>
+                                        <span><?php echo date('M j, Y', strtotime($booking->booking_date)); ?> at <?php echo date('g:i A', strtotime($booking->booking_time)); ?></span>
+                                    </div>
+
+                                    <?php if ($booking->employee_name): ?>
+                                        <div class="detail-row">
+                                            <span class="icon dashicons dashicons-businessman"></span>
+                                            <span><?php echo esc_html($booking->employee_name); ?></span>
+                                        </div>
+                                    <?php endif; ?>
+
+                                    <div class="detail-row">
+                                        <span class="icon dashicons dashicons-money-alt"></span>
+                                        <span class="amount"><strong>₹<?php echo number_format($booking->total_amount, 2); ?></strong></span>
+                                    </div>
+
+                                    <?php if ($booking->urgency_level !== 'normal'): ?>
+                                        <div class="detail-row urgency">
+                                            <span class="icon dashicons dashicons-warning"></span>
+                                            <span class="urgency-<?php echo esc_attr($booking->urgency_level); ?>">
+                                                <?php echo esc_html(ucfirst($booking->urgency_level)); ?>
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+
+                            <div class="booking-card-footer">
+                                <button type="button" class="button view-booking-details" data-booking-id="<?php echo $booking->id; ?>">
+                                    <span class="dashicons dashicons-visibility"></span>
+                                    <?php _e('View Details', 'sahayya-booking'); ?>
+                                </button>
+
+                                <?php if ($can_modify): ?>
+                                    <button type="button" class="button modify-booking" data-booking-id="<?php echo $booking->id; ?>">
+                                        <span class="dashicons dashicons-edit"></span>
+                                        <?php _e('Modify', 'sahayya-booking'); ?>
+                                    </button>
+                                <?php endif; ?>
+
+                                <?php if ($can_cancel): ?>
+                                    <button type="button" class="button cancel-booking" data-booking-id="<?php echo $booking->id; ?>">
+                                        <span class="dashicons dashicons-no"></span>
+                                        <?php _e('Cancel', 'sahayya-booking'); ?>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <div class="no-bookings">
+                    <div class="no-bookings-icon">
+                        <span class="dashicons dashicons-calendar-alt"></span>
+                    </div>
+                    <h4><?php _e('No Bookings Yet', 'sahayya-booking'); ?></h4>
+                    <p><?php _e('You haven\'t made any bookings yet. Book your first service now!', 'sahayya-booking'); ?></p>
+                    <a href="<?php echo home_url('/book-a-service/'); ?>" class="button button-primary">
+                        <?php _e('Book a Service', 'sahayya-booking'); ?>
+                    </a>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Booking Details Modal -->
+        <div id="booking-details-modal" class="sahayya-modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4><?php _e('Booking Details', 'sahayya-booking'); ?></h4>
+                    <span class="close-modal">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div id="booking-details-content">
+                        <p class="loading"><?php _e('Loading...', 'sahayya-booking'); ?></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php
+
+        return ob_get_clean();
+    }
+
+    public function render_customer_dashboard($atts) {
+        if (!is_user_logged_in()) {
+            return '<div class="sahayya-login-notice">
+                <p>' . __('Please login to access your dashboard.', 'sahayya-booking') . '</p>
+                <a href="' . wp_login_url(get_permalink()) . '" class="button button-primary">' . __('Login', 'sahayya-booking') . '</a>
+            </div>';
+        }
+
+        $user_id = get_current_user_id();
+        $user = wp_get_current_user();
+
+        // Get stats
+        global $wpdb;
+        $bookings_table = $wpdb->prefix . 'sahayya_bookings';
+
+        $total_bookings = $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(*) FROM $bookings_table WHERE subscriber_id = %d
+        ", $user_id));
+
+        $active_bookings = $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(*) FROM $bookings_table
+            WHERE subscriber_id = %d AND booking_status IN ('pending', 'assigned', 'in_progress')
+        ", $user_id));
+
+        $completed_bookings = $wpdb->get_var($wpdb->prepare("
+            SELECT COUNT(*) FROM $bookings_table
+            WHERE subscriber_id = %d AND booking_status = 'completed'
+        ", $user_id));
+
+        $total_spent = $wpdb->get_var($wpdb->prepare("
+            SELECT SUM(total_amount) FROM $bookings_table
+            WHERE subscriber_id = %d AND booking_status IN ('completed', 'in_progress', 'assigned')
+        ", $user_id));
+
+        // Get dependents
+        $dependents = Sahayya_Booking_Database::get_dependents($user_id);
+
+        // Get recent bookings
+        $recent_bookings = $wpdb->get_results($wpdb->prepare("
+            SELECT b.*, s.name as service_name
+            FROM $bookings_table b
+            LEFT JOIN {$wpdb->prefix}sahayya_services s ON b.service_id = s.id
+            WHERE b.subscriber_id = %d
+            ORDER BY b.created_at DESC
+            LIMIT 5
+        ", $user_id));
+
+        ob_start();
+        ?>
+        <div class="sahayya-customer-dashboard">
+            <!-- Dashboard Header -->
+            <div class="dashboard-header">
+                <div class="user-welcome">
+                    <h2><?php printf(__('Welcome back, %s!', 'sahayya-booking'), esc_html($user->display_name)); ?></h2>
+                    <p><?php _e('Manage your bookings and account from your dashboard', 'sahayya-booking'); ?></p>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <span class="dashicons dashicons-calendar-alt"></span>
+                    </div>
+                    <div class="stat-info">
+                        <h4><?php echo number_format($total_bookings); ?></h4>
+                        <p><?php _e('Total Bookings', 'sahayya-booking'); ?></p>
+                    </div>
+                </div>
+
+                <div class="stat-card active">
+                    <div class="stat-icon">
+                        <span class="dashicons dashicons-clock"></span>
+                    </div>
+                    <div class="stat-info">
+                        <h4><?php echo number_format($active_bookings); ?></h4>
+                        <p><?php _e('Active Bookings', 'sahayya-booking'); ?></p>
+                    </div>
+                </div>
+
+                <div class="stat-card completed">
+                    <div class="stat-icon">
+                        <span class="dashicons dashicons-yes-alt"></span>
+                    </div>
+                    <div class="stat-info">
+                        <h4><?php echo number_format($completed_bookings); ?></h4>
+                        <p><?php _e('Completed', 'sahayya-booking'); ?></p>
+                    </div>
+                </div>
+
+                <div class="stat-card money">
+                    <div class="stat-icon">
+                        <span class="dashicons dashicons-money-alt"></span>
+                    </div>
+                    <div class="stat-info">
+                        <h4>₹<?php echo number_format($total_spent ? $total_spent : 0, 2); ?></h4>
+                        <p><?php _e('Total Spent', 'sahayya-booking'); ?></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="dashboard-quick-actions">
+                <h3><?php _e('Quick Actions', 'sahayya-booking'); ?></h3>
+                <div class="action-buttons">
+                    <a href="<?php echo home_url('/book-a-service/'); ?>" class="action-btn primary">
+                        <span class="dashicons dashicons-plus"></span>
+                        <?php _e('New Booking', 'sahayya-booking'); ?>
+                    </a>
+                    <button type="button" class="action-btn secondary" onclick="showAddDependentModal()">
+                        <span class="dashicons dashicons-admin-users"></span>
+                        <?php _e('Add Dependent', 'sahayya-booking'); ?>
+                    </button>
+                    <a href="#my-bookings" class="action-btn">
+                        <span class="dashicons dashicons-list-view"></span>
+                        <?php _e('View All Bookings', 'sahayya-booking'); ?>
+                    </a>
+                    <a href="#my-invoices" class="action-btn">
+                        <span class="dashicons dashicons-media-document"></span>
+                        <?php _e('My Invoices', 'sahayya-booking'); ?>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Main Content Grid -->
+            <div class="dashboard-content-grid">
+                <!-- Recent Bookings -->
+                <div class="dashboard-section" id="my-bookings">
+                    <div class="section-header">
+                        <h3><?php _e('Recent Bookings', 'sahayya-booking'); ?></h3>
+                        <a href="<?php echo home_url('/my-bookings/'); ?>" class="view-all"><?php _e('View All', 'sahayya-booking'); ?></a>
+                    </div>
+
+                    <?php if (!empty($recent_bookings)): ?>
+                        <div class="bookings-list">
+                            <?php foreach ($recent_bookings as $booking): ?>
+                                <div class="booking-item status-<?php echo esc_attr($booking->booking_status); ?>">
+                                    <div class="booking-info">
+                                        <h5><?php echo esc_html($booking->service_name); ?></h5>
+                                        <p class="booking-meta">
+                                            <span class="booking-number">#<?php echo esc_html($booking->booking_number); ?></span>
+                                            <span class="booking-date"><?php echo date('M j, Y', strtotime($booking->booking_date)); ?></span>
+                                        </p>
+                                    </div>
+                                    <div class="booking-status-amount">
+                                        <span class="status-badge status-<?php echo esc_attr($booking->booking_status); ?>">
+                                            <?php echo esc_html(ucfirst($booking->booking_status)); ?>
+                                        </span>
+                                        <span class="amount">₹<?php echo number_format($booking->total_amount, 2); ?></span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="empty-state">
+                            <p><?php _e('No bookings yet', 'sahayya-booking'); ?></p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Dependents Management -->
+                <div class="dashboard-section" id="my-dependents">
+                    <div class="section-header">
+                        <h3><?php _e('My Dependents', 'sahayya-booking'); ?></h3>
+                        <button type="button" class="add-dependent-btn" onclick="showAddDependentModal()">
+                            <span class="dashicons dashicons-plus-alt"></span> <?php _e('Add', 'sahayya-booking'); ?>
+                        </button>
+                    </div>
+
+                    <?php if (!empty($dependents)): ?>
+                        <div class="dependents-list">
+                            <?php foreach ($dependents as $dependent): ?>
+                                <div class="dependent-item" data-dependent-id="<?php echo $dependent->id; ?>">
+                                    <?php if ($dependent->photo): ?>
+                                        <img src="<?php echo esc_url($dependent->photo); ?>" alt="<?php echo esc_attr($dependent->name); ?>" class="dependent-photo" />
+                                    <?php else: ?>
+                                        <div class="dependent-photo-placeholder">
+                                            <span class="dashicons dashicons-admin-users"></span>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="dependent-info">
+                                        <h5><?php echo esc_html($dependent->name); ?></h5>
+                                        <p><?php echo esc_html($dependent->age); ?> years, <?php echo esc_html(ucfirst($dependent->gender)); ?></p>
+                                    </div>
+                                    <div class="dependent-actions">
+                                        <button type="button" class="edit-dependent" data-dependent-id="<?php echo $dependent->id; ?>" title="<?php _e('Edit', 'sahayya-booking'); ?>">
+                                            <span class="dashicons dashicons-edit"></span>
+                                        </button>
+                                        <button type="button" class="delete-dependent" data-dependent-id="<?php echo $dependent->id; ?>" title="<?php _e('Delete', 'sahayya-booking'); ?>">
+                                            <span class="dashicons dashicons-trash"></span>
+                                        </button>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php else: ?>
+                        <div class="empty-state">
+                            <p><?php _e('No dependents added yet', 'sahayya-booking'); ?></p>
+                            <button type="button" class="button button-primary" onclick="showAddDependentModal()">
+                                <?php _e('Add Your First Dependent', 'sahayya-booking'); ?>
+                            </button>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add/Edit Dependent Modal -->
+        <div id="add-dependent-modal" class="sahayya-modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 id="dependent-modal-title"><?php _e('Add New Dependent', 'sahayya-booking'); ?></h4>
+                    <span class="close-modal" onclick="closeAddDependentModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form id="add-dependent-form" enctype="multipart/form-data">
+                        <?php wp_nonce_field('sahayya_add_dependent', 'dependent_nonce'); ?>
+                        <input type="hidden" name="dependent_id" id="dependent_id" value="" />
+
+                        <div class="form-group">
+                            <label for="dependent_name"><?php _e('Name', 'sahayya-booking'); ?> <span class="required">*</span></label>
+                            <input type="text" name="dependent_name" id="dependent_name" required />
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="dependent_age"><?php _e('Age', 'sahayya-booking'); ?> <span class="required">*</span></label>
+                                <input type="number" name="dependent_age" id="dependent_age" min="0" max="120" required />
+                            </div>
+
+                            <div class="form-group">
+                                <label for="dependent_gender"><?php _e('Gender', 'sahayya-booking'); ?> <span class="required">*</span></label>
+                                <select name="dependent_gender" id="dependent_gender" required>
+                                    <option value=""><?php _e('Select Gender', 'sahayya-booking'); ?></option>
+                                    <option value="male"><?php _e('Male', 'sahayya-booking'); ?></option>
+                                    <option value="female"><?php _e('Female', 'sahayya-booking'); ?></option>
+                                    <option value="other"><?php _e('Other', 'sahayya-booking'); ?></option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="dependent_address"><?php _e('Address', 'sahayya-booking'); ?> <span class="required">*</span></label>
+                            <textarea name="dependent_address" id="dependent_address" rows="3" required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="dependent_medical_conditions"><?php _e('Medical Conditions', 'sahayya-booking'); ?></label>
+                            <textarea name="dependent_medical_conditions" id="dependent_medical_conditions" rows="3" placeholder="<?php _e('Any medical conditions or special needs...', 'sahayya-booking'); ?>"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="dependent_photo"><?php _e('Photo (Optional)', 'sahayya-booking'); ?></label>
+                            <input type="file" name="dependent_photo" id="dependent_photo" accept="image/*" />
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="button" onclick="closeAddDependentModal()"><?php _e('Cancel', 'sahayya-booking'); ?></button>
+                            <button type="submit" class="button button-primary"><?php _e('Save Dependent', 'sahayya-booking'); ?></button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <?php
+
+        return ob_get_clean();
+    }
+
     public function render_my_invoices($atts) {
         if (!is_user_logged_in()) {
             return '<div class="sahayya-login-notice">

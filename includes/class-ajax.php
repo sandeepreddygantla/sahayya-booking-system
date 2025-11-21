@@ -50,12 +50,8 @@ class Sahayya_Booking_Ajax {
     }
     
     public function create_booking() {
-        // Debug: Log received POST data
-        error_log('AJAX create_booking called with POST data: ' . print_r($_POST, true));
-        
         // Verify nonce
         if (!isset($_POST['sahayya_booking_nonce']) || !wp_verify_nonce($_POST['sahayya_booking_nonce'], 'sahayya_create_booking')) {
-            error_log('Nonce verification failed. Nonce: ' . (isset($_POST['sahayya_booking_nonce']) ? $_POST['sahayya_booking_nonce'] : 'NOT SET'));
             wp_send_json_error('Security check failed');
         }
         
@@ -182,7 +178,10 @@ class Sahayya_Booking_Ajax {
             'booking_time' => $booking_time,
             'urgency_level' => sanitize_text_field($_POST['urgency_level']),
             'special_instructions' => sanitize_textarea_field($_POST['special_instructions']),
-            'booking_status' => 'pending'
+            'booking_status' => 'pending',
+            'base_amount' => $base_amount,
+            'extras_amount' => $extras_amount,
+            'total_amount' => $total_amount
         );
         
         // Create booking
@@ -386,20 +385,59 @@ class Sahayya_Booking_Ajax {
         $service = Sahayya_Booking_Database::get_service($booking->service_id);
         $dependent_ids = json_decode($booking->dependent_ids, true);
         $dependents = array();
-        
+
         if (!empty($dependent_ids)) {
             foreach ($dependent_ids as $dep_id) {
                 $dep = Sahayya_Booking_Database::get_dependent($dep_id);
                 if ($dep) $dependents[] = $dep;
             }
         }
-        
+
+        // Get employee details if assigned
+        $employee_name = null;
+        $employee_phone = null;
+        if ($booking->assigned_employee_id) {
+            global $wpdb;
+            $employees_table = $wpdb->prefix . 'sahayya_employees';
+            $employee = $wpdb->get_row($wpdb->prepare("
+                SELECT e.phone, u.display_name as name
+                FROM $employees_table e
+                LEFT JOIN {$wpdb->users} u ON e.user_id = u.ID
+                WHERE e.id = %d
+            ", $booking->assigned_employee_id));
+
+            if ($employee) {
+                $employee_name = $employee->name;
+                $employee_phone = $employee->phone;
+            }
+        }
+
+        // Calculate dependent charges
+        $dependent_count = count($dependents);
+        $per_person_price = $service ? $service->per_person_price : 0;
+        $dependent_charges = $dependent_count * $per_person_price;
+
+        // Flatten the structure for JavaScript compatibility
         $booking_details = array(
-            'booking' => $booking,
-            'service' => $service,
+            'id' => $booking->id,
+            'booking_number' => $booking->booking_number,
+            'booking_status' => $booking->booking_status,
+            'booking_date' => $booking->booking_date,
+            'booking_time' => $booking->booking_time,
+            'urgency_level' => $booking->urgency_level,
+            'special_instructions' => $booking->special_instructions,
+            'base_amount' => $booking->base_amount,
+            'extras_amount' => $booking->extras_amount,
+            'dependent_charges' => $dependent_charges,
+            'dependent_count' => $dependent_count,
+            'per_person_price' => $per_person_price,
+            'total_amount' => $booking->total_amount,
+            'service_name' => $service ? $service->name : '',
+            'employee_name' => $employee_name,
+            'employee_phone' => $employee_phone,
             'dependents' => $dependents
         );
-        
+
         wp_send_json_success($booking_details);
     }
     

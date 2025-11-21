@@ -108,8 +108,6 @@ class Sahayya_Email_Scheduler {
                 ),
                 array('id' => $email_data->id)
             );
-            
-            error_log("Sahayya Email: Successfully sent {$email_data->notification_type} to {$email_data->recipient_email}");
         } else {
             // Mark as failed if max attempts reached
             if ($email_data->attempts + 1 >= $email_data->max_attempts) {
@@ -122,8 +120,6 @@ class Sahayya_Email_Scheduler {
                     array('id' => $email_data->id)
                 );
             }
-            
-            error_log("Sahayya Email: Failed to send {$email_data->notification_type} to {$email_data->recipient_email}");
         }
     }
     
@@ -436,8 +432,6 @@ class Sahayya_Email_Scheduler {
         $wpdb->query($wpdb->prepare(
             "DELETE FROM $notifications_table WHERE status = 'failed' AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)"
         ));
-        
-        error_log('Sahayya Email: Cleaned up old email logs and notifications');
     }
     
     /**

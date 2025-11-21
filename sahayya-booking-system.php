@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('SAHAYYA_BOOKING_VERSION', '1.0.0');
+define('SAHAYYA_BOOKING_VERSION', '3.1.1');
 define('SAHAYYA_BOOKING_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SAHAYYA_BOOKING_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SAHAYYA_BOOKING_PLUGIN_FILE', __FILE__);
@@ -70,8 +70,6 @@ class SahayyaBookingSystem {
         $file_path = SAHAYYA_BOOKING_PLUGIN_DIR . $file;
         if (file_exists($file_path)) {
             require_once $file_path;
-        } else {
-            error_log("Sahayya Booking: Missing file - " . $file_path);
         }
     }
     

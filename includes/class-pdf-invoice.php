@@ -426,9 +426,8 @@ class Sahayya_PDF_Invoice extends TCPDF {
             
             $pdf->Output($path, 'F');
             return $path;
-            
+
         } catch (Exception $e) {
-            error_log('Error saving PDF: ' . $e->getMessage());
             return false;
         }
     }

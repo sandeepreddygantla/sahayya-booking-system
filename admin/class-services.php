@@ -9,22 +9,22 @@ class Sahayya_Booking_Services {
     public function render_page() {
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
         $service_id = isset($_GET['service_id']) ? intval($_GET['service_id']) : 0;
-        
+
+        // Note: Delete action is now handled early in admin_init hook (see class-admin.php)
+        // to prevent "headers already sent" issues
+
         // Handle form submissions first
         if (isset($_POST['submit']) && wp_verify_nonce($_POST['_wpnonce'], 'sahayya_service_action')) {
             $this->handle_service_form_submission();
             return;
         }
-        
+
         switch ($action) {
             case 'add':
                 $this->render_add_service_form();
                 break;
             case 'edit':
                 $this->render_edit_service_form($service_id);
-                break;
-            case 'delete':
-                $this->handle_delete_service($service_id);
                 break;
             default:
                 $this->render_services_list();
@@ -41,7 +41,9 @@ class Sahayya_Booking_Services {
             <a href="<?php echo admin_url('admin.php?page=sahayya-booking-services&action=add'); ?>" class="page-title-action">
                 <?php _e('Add New Service', 'sahayya-booking'); ?>
             </a>
-            
+
+            <?php $this->show_messages(); ?>
+
             <div class="sahayya-services-grid">
                 <?php if (!empty($services)): ?>
                     <?php foreach ($services as $service): ?>
@@ -751,21 +753,6 @@ class Sahayya_Booking_Services {
         }
     }
     
-    private function handle_delete_service($service_id) {
-        if (!wp_verify_nonce($_GET['_wpnonce'], 'delete_service_' . $service_id)) {
-            wp_die(__('Security check failed.', 'sahayya-booking'));
-        }
-        
-        $result = Sahayya_Booking_Database::delete_service($service_id);
-        
-        if ($result) {
-            wp_redirect(admin_url('admin.php?page=sahayya-booking-services&message=service_deleted'));
-        } else {
-            wp_redirect(admin_url('admin.php?page=sahayya-booking-services&error=delete_failed'));
-        }
-        exit;
-    }
-    
     private function sanitize_service_data($data) {
         return array(
             'name' => sanitize_text_field($data['service_name']),
@@ -842,5 +829,34 @@ class Sahayya_Booking_Services {
         echo '</tbody></table>';
         echo '</div>';
     }
-    
+
+    private function show_messages() {
+        if (isset($_GET['message'])) {
+            $message = sanitize_text_field($_GET['message']);
+            $messages = array(
+                'service_added' => __('Service added successfully!', 'sahayya-booking'),
+                'service_updated' => __('Service updated successfully!', 'sahayya-booking'),
+                'service_deleted' => __('Service deleted successfully!', 'sahayya-booking')
+            );
+
+            if (isset($messages[$message])) {
+                echo '<div class="notice notice-success is-dismissible"><p>' . $messages[$message] . '</p></div>';
+            }
+        }
+
+        if (isset($_GET['error'])) {
+            $error = sanitize_text_field($_GET['error']);
+            $errors = array(
+                'db_error' => __('Database error occurred. Please try again.', 'sahayya-booking'),
+                'delete_failed' => __('Failed to delete service. Please try again.', 'sahayya-booking'),
+                'update_failed' => __('Failed to update service. Please try again.', 'sahayya-booking'),
+                'missing_data' => __('Missing required data. Please try again.', 'sahayya-booking')
+            );
+
+            if (isset($errors[$error])) {
+                echo '<div class="notice notice-error is-dismissible"><p>' . $errors[$error] . '</p></div>';
+            }
+        }
+    }
+
 }

@@ -1,16 +1,7 @@
 // Sahayya Booking System - Frontend JavaScript
 
-// Fallback if jQuery is not loaded via WordPress
-if (typeof jQuery === 'undefined') {
-    console.error('jQuery is not loaded. Please ensure WordPress is loading jQuery properly.');
-}
-
 jQuery(document).ready(function($) {
-    
-    console.log('Sahayya Booking System Frontend Loaded');
-    console.log('jQuery version:', $.fn.jquery);
-    console.log('Booking steps found:', $('.booking-step').length);
-    
+
     let currentStep = 1;
     let selectedService = null;
     let selectedDependents = [];
@@ -20,7 +11,6 @@ jQuery(document).ready(function($) {
     
     // Step navigation
     function showStep(step) {
-        console.log('Showing step:', step);
         $('.booking-step').removeClass('active').hide();
         $('.booking-step.step-' + step).addClass('active').show();
         currentStep = step;
@@ -57,8 +47,7 @@ jQuery(document).ready(function($) {
                 address: $(this).closest('.dependent-option').find('.dependent-address').text()
             });
         });
-        
-        console.log('Dependents selected:', selectedDependents.length);
+
         $('.step-2 .next-step').prop('disabled', selectedDependents.length === 0);
         updatePricingBreakdown();
     });
@@ -70,43 +59,49 @@ jQuery(document).ready(function($) {
         }
     }, 1000);
     
-    // Step navigation buttons
+    // Step navigation buttons - DISABLED to prevent conflict with inline navigation
+    // The shortcode template has its own navigation system that handles step transitions
+    // This jQuery handler was causing conflicts by running after the inline handler
+    /*
     $(document).on('click', 'button.next-step', function(e) {
         e.preventDefault();
         e.stopPropagation();
         console.log('Next step clicked, current step:', currentStep);
         console.log('Selected service:', selectedService);
         console.log('Selected dependents:', selectedDependents);
-        
+
         // Validate current step before proceeding
         if (currentStep === 1 && !selectedService) {
             alert('Please select a service first.');
             return;
         }
-        
+
         if (currentStep === 2 && selectedDependents.length === 0) {
             alert('Please select at least one dependent.');
             return;
         }
-        
+
         // Additional validation for step 3 (datetime)
         if (currentStep === 3) {
             const bookingDate = $('#booking_date').val();
             const bookingTime = $('#booking_time').val();
-            
+
             if (!bookingDate || !bookingTime) {
                 alert('Please select both date and time for your appointment.');
                 return;
             }
-            
+
             updateBookingSummary();
         }
-        
-        if (currentStep < 4) {
+
+        if (currentStep < 6) {
             showStep(currentStep + 1);
         }
     });
+    */
     
+    // Previous step button - DISABLED to prevent conflict with inline navigation
+    /*
     $(document).on('click', '.prev-step', function(e) {
         e.preventDefault();
         console.log('Previous step clicked, current step:', currentStep);
@@ -114,6 +109,7 @@ jQuery(document).ready(function($) {
             showStep(currentStep - 1);
         }
     });
+    */
     
     // Update pricing breakdown
     function updatePricingBreakdown() {
@@ -261,9 +257,8 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 if (response.success) {
                     // You can create a modal to show booking details here
-                    console.log('Booking details:', response.data);
                     // For now, just alert - you can make this more elegant
-                    alert('Booking details loaded. Check console for full details.');
+                    alert('Booking details loaded.');
                 } else {
                     alert('Error: ' + response.data);
                 }
@@ -278,16 +273,12 @@ jQuery(document).ready(function($) {
     const urlParams = new URLSearchParams(window.location.search);
     const preSelectedService = urlParams.get('service');
     if (preSelectedService) {
-        console.log('Pre-selecting service:', preSelectedService);
         setTimeout(function() {
             const serviceRadio = $('#service_' + preSelectedService);
             if (serviceRadio.length > 0) {
                 serviceRadio.prop('checked', true).trigger('change');
-                console.log('Service pre-selected successfully');
                 // Auto-advance to step 2 if service is pre-selected
                 showStep(2);
-            } else {
-                console.log('Service radio button not found:', '#service_' + preSelectedService);
             }
         }, 500);
     }

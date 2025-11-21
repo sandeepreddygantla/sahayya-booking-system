@@ -9,7 +9,24 @@ class Sahayya_Booking_Admin {
     public function __construct() {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'admin_init'));
-        
+
+        // Handle booking actions early (before any output) to allow redirects
+        if (is_admin() && isset($_GET['page']) && $_GET['page'] === 'sahayya-booking-bookings') {
+            if (isset($_GET['action']) && isset($_GET['booking_id'])) {
+                $action = sanitize_text_field($_GET['action']);
+                if (in_array($action, array('cancel', 'delete'))) {
+                    add_action('admin_init', array($this, 'handle_early_booking_actions'), 5);
+                }
+            }
+        }
+
+        // Handle service actions early (before any output) to allow redirects
+        if (is_admin() && isset($_GET['page']) && $_GET['page'] === 'sahayya-booking-services') {
+            if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['service_id'])) {
+                add_action('admin_init', array($this, 'handle_early_service_actions'), 5);
+            }
+        }
+
         // Initialize employee management early to handle form submissions
         if (is_admin() && isset($_GET['page']) && $_GET['page'] === 'sahayya-booking-employees') {
             require_once SAHAYYA_BOOKING_PLUGIN_DIR . 'admin/class-employees.php';
@@ -105,7 +122,126 @@ class Sahayya_Booking_Admin {
         register_setting('sahayya_booking_settings', 'sahayya_booking_settings');
         register_setting('sahayya_payment_settings', 'sahayya_payment_settings');
     }
-    
+
+    public function handle_early_booking_actions() {
+        // Load the bookings class
+        if (!class_exists('Sahayya_Booking_Bookings')) {
+            require_once SAHAYYA_BOOKING_PLUGIN_DIR . 'admin/class-bookings.php';
+        }
+
+        $booking_id = isset($_GET['booking_id']) ? intval($_GET['booking_id']) : 0;
+        $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : '';
+
+        if ($action === 'cancel' && $booking_id > 0) {
+            // Verify nonce
+            if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'cancel_booking_' . $booking_id)) {
+                wp_die(__('Security check failed.', 'sahayya-booking'));
+            }
+
+            // Check user permissions
+            if (!current_user_can('manage_sahayya_bookings')) {
+                wp_die(__('You do not have permission to cancel bookings.', 'sahayya-booking'));
+            }
+
+            // Get booking to verify it exists
+            $booking = Sahayya_Booking_Database::get_booking($booking_id);
+            if (!$booking) {
+                wp_die(__('Booking not found.', 'sahayya-booking'));
+            }
+
+            // Check if already cancelled
+            if ($booking->booking_status === 'cancelled') {
+                wp_redirect(admin_url('admin.php?page=sahayya-booking-bookings&message=already_cancelled'));
+                exit;
+            }
+
+            // Update booking status to cancelled
+            $result = Sahayya_Booking_Database::update_booking_status($booking_id, 'cancelled');
+
+            if ($result !== false) {
+                // Send cancellation notification email
+                do_action('sahayya_booking_cancelled', $booking_id, $booking);
+
+                wp_redirect(admin_url('admin.php?page=sahayya-booking-bookings&message=booking_cancelled'));
+            } else {
+                wp_redirect(admin_url('admin.php?page=sahayya-booking-bookings&error=cancel_failed'));
+            }
+            exit;
+        }
+
+        if ($action === 'delete' && $booking_id > 0) {
+            // Verify nonce
+            if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'delete_booking_' . $booking_id)) {
+                wp_die(__('Security check failed.', 'sahayya-booking'));
+            }
+
+            // Check user permissions
+            if (!current_user_can('manage_sahayya_bookings')) {
+                wp_die(__('You do not have permission to delete bookings.', 'sahayya-booking'));
+            }
+
+            // Get booking to verify it exists
+            $booking = Sahayya_Booking_Database::get_booking($booking_id);
+            if (!$booking) {
+                wp_die(__('Booking not found.', 'sahayya-booking'));
+            }
+
+            // Delete the booking
+            $result = Sahayya_Booking_Database::delete_booking($booking_id);
+
+            if ($result !== false) {
+                // Trigger deletion action hook for cleanup
+                do_action('sahayya_booking_deleted', $booking_id, $booking);
+
+                wp_redirect(admin_url('admin.php?page=sahayya-booking-bookings&message=booking_deleted'));
+            } else {
+                wp_redirect(admin_url('admin.php?page=sahayya-booking-bookings&error=delete_failed'));
+            }
+            exit;
+        }
+    }
+
+    public function handle_early_service_actions() {
+        // Load the services class
+        if (!class_exists('Sahayya_Booking_Services')) {
+            require_once SAHAYYA_BOOKING_PLUGIN_DIR . 'admin/class-services.php';
+        }
+
+        $service_id = isset($_GET['service_id']) ? intval($_GET['service_id']) : 0;
+        $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : '';
+
+        if ($action === 'delete' && $service_id > 0) {
+            // Verify nonce
+            if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'delete_service_' . $service_id)) {
+                wp_die(__('Security check failed.', 'sahayya-booking'));
+            }
+
+            // Check user permissions
+            if (!current_user_can('manage_sahayya_services')) {
+                wp_die(__('You do not have permission to delete services.', 'sahayya-booking'));
+            }
+
+            // Get service to verify it exists
+            $service = Sahayya_Booking_Database::get_service($service_id);
+            if (!$service) {
+                wp_die(__('Service not found.', 'sahayya-booking'));
+            }
+
+            // Delete the service
+            $result = Sahayya_Booking_Database::delete_service($service_id);
+
+            if ($result !== false) {
+                // Trigger deletion action hook for cleanup
+                do_action('sahayya_service_deleted', $service_id, $service);
+
+                wp_redirect(admin_url('admin.php?page=sahayya-booking-services&message=service_deleted'));
+            } else {
+                wp_redirect(admin_url('admin.php?page=sahayya-booking-services&error=delete_failed'));
+            }
+            exit;
+        }
+    }
+
     public function dashboard_page() {
         $this->render_admin_header();
         ?>
