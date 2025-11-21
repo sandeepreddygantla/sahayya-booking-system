@@ -112,38 +112,12 @@ class Sahayya_Booking_Activator {
             KEY invoice_id (invoice_id)
         ) $charset_collate;";
         
-        // Progress updates table
-        $table_progress = $wpdb->prefix . 'sahayya_progress_updates';
-        $sql_progress = "CREATE TABLE $table_progress (
-            id int(11) NOT NULL AUTO_INCREMENT,
-            booking_id int(11) NOT NULL,
-            employee_id int(11) NOT NULL,
-            update_type enum('status','location','photo','document','note') DEFAULT 'status',
-            update_text text,
-            file_path varchar(255),
-            latitude decimal(10, 8),
-            longitude decimal(11, 8),
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY booking_id (booking_id),
-            KEY employee_id (employee_id)
-        ) $charset_collate;";
-        
-        // Payments table
-        $table_payments = $wpdb->prefix . 'sahayya_payments';
-        $sql_payments = "CREATE TABLE $table_payments (
-            id int(11) NOT NULL AUTO_INCREMENT,
-            booking_id int(11) NOT NULL,
-            amount decimal(10,2) NOT NULL,
-            payment_method varchar(50) NOT NULL,
-            transaction_id varchar(255),
-            gateway_response text,
-            status enum('pending','completed','failed','refunded') DEFAULT 'pending',
-            processed_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY booking_id (booking_id),
-            KEY transaction_id (transaction_id)
-        ) $charset_collate;";
+        /*
+         * Removed unused tables (not implemented in current version):
+         * - sahayya_progress_updates (employee GPS tracking - planned for future)
+         * - sahayya_payments (payment gateway integration - planned for future)
+         * These can be added back when the features are implemented.
+         */
         
         // Employee profiles table
         $table_employees = $wpdb->prefix . 'sahayya_employees';
@@ -250,7 +224,7 @@ class Sahayya_Booking_Activator {
             KEY invoice_id (invoice_id)
         ) $charset_collate;";
         
-        // Email notifications table
+        // Email notifications table (used by email scheduler for queued emails)
         $table_email_notifications = $wpdb->prefix . 'sahayya_email_notifications';
         $sql_email_notifications = "CREATE TABLE $table_email_notifications (
             id int(11) NOT NULL AUTO_INCREMENT,
@@ -276,79 +250,29 @@ class Sahayya_Booking_Activator {
             KEY scheduled_at (scheduled_at),
             KEY notification_type (notification_type)
         ) $charset_collate;";
-        
-        // Email templates table
-        $table_email_templates = $wpdb->prefix . 'sahayya_email_templates';
-        $sql_email_templates = "CREATE TABLE $table_email_templates (
-            id int(11) NOT NULL AUTO_INCREMENT,
-            name varchar(255) NOT NULL,
-            type enum('booking_confirmation','booking_reminder','invoice','payment_confirmation','booking_cancelled','booking_completed','custom') NOT NULL,
-            subject varchar(500) NOT NULL,
-            content longtext NOT NULL,
-            variables text,
-            is_active tinyint(1) DEFAULT 1,
-            is_default tinyint(1) DEFAULT 0,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY type (type),
-            KEY is_active (is_active)
-        ) $charset_collate;";
-        
-        // Custom fields table
-        $table_custom_fields = $wpdb->prefix . 'sahayya_custom_fields';
-        $sql_custom_fields = "CREATE TABLE $table_custom_fields (
-            id int(11) NOT NULL AUTO_INCREMENT,
-            name varchar(255) NOT NULL,
-            label varchar(255) NOT NULL,
-            field_type enum('text','textarea','select','radio','checkbox','date','email','phone','number','file') NOT NULL,
-            options text,
-            validation_rules text,
-            placeholder varchar(255),
-            help_text text,
-            is_required tinyint(1) DEFAULT 0,
-            applies_to enum('all_services','specific_services') DEFAULT 'all_services',
-            service_ids text,
-            sort_order int(11) DEFAULT 0,
-            status enum('active','inactive') DEFAULT 'active',
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY status (status),
-            KEY sort_order (sort_order)
-        ) $charset_collate;";
-        
-        // Booking custom field data table
-        $table_booking_custom_data = $wpdb->prefix . 'sahayya_booking_custom_data';
-        $sql_booking_custom_data = "CREATE TABLE $table_booking_custom_data (
-            id int(11) NOT NULL AUTO_INCREMENT,
-            booking_id int(11) NOT NULL,
-            field_id int(11) NOT NULL,
-            field_value longtext,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY booking_id (booking_id),
-            KEY field_id (field_id),
-            UNIQUE KEY booking_field (booking_id, field_id)
-        ) $charset_collate;";
-        
+
+        /*
+         * Removed unused tables (not implemented in current version):
+         * - sahayya_email_templates (custom email templates - not implemented)
+         * - sahayya_custom_fields (dynamic form fields - not implemented)
+         * - sahayya_booking_custom_data (custom field storage - not implemented)
+         *
+         * These tables can be added in future versions when features are implemented.
+         */
+
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        
+
+        // Create all actively used tables
         dbDelta($sql_services);
         dbDelta($sql_categories);
         dbDelta($sql_dependents);
         dbDelta($sql_bookings);
-        dbDelta($sql_progress);
-        dbDelta($sql_payments);
         dbDelta($sql_employees);
         dbDelta($sql_service_extras);
         dbDelta($sql_booking_extras);
         dbDelta($sql_invoices);
         dbDelta($sql_invoice_items);
         dbDelta($sql_email_notifications);
-        dbDelta($sql_email_templates);
-        dbDelta($sql_custom_fields);
-        dbDelta($sql_booking_custom_data);
         
         // Email logs table
         $table_email_logs = $wpdb->prefix . 'sahayya_email_logs';
