@@ -65,15 +65,18 @@ echo '<h2>Creating Service Categories Table</h2>';
 
 $table_name = $table_prefix . 'sahayya_service_categories';
 
-// Drop table if exists (for testing)
-$sql = "DROP TABLE IF EXISTS `$table_name`";
-if ($mysqli->query($sql)) {
-    echo '<p class="success">✓ Dropped existing table (if any)</p>';
+// Check if table already exists
+$result = $mysqli->query("SHOW TABLES LIKE '$table_name'");
+if ($result && $result->num_rows > 0) {
+    echo '<p class="error">⚠️ Table already exists! Skipping creation to preserve data.</p>';
+    echo '<p>If you want to recreate, manually drop the table first in MySQL.</p>';
+    $table_exists = true;
 } else {
-    echo '<p class="error">✗ Error dropping table: ' . $mysqli->error . '</p>';
+    $table_exists = false;
 }
 
-// Create table
+// Create table only if it doesn't exist
+if (!$table_exists) {
 $sql = "CREATE TABLE `$table_name` (
     id int(11) NOT NULL AUTO_INCREMENT,
     name varchar(255) NOT NULL,
@@ -83,39 +86,39 @@ $sql = "CREATE TABLE `$table_name` (
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
-if ($mysqli->query($sql)) {
-    echo '<p class="success">✓ Table created successfully!</p>';
-
-    // Insert test data
-    $sql = "INSERT INTO `$table_name` (name, description, status) VALUES
-            ('Test Category', 'This is a test category created directly', 'active')";
-
     if ($mysqli->query($sql)) {
-        echo '<p class="success">✓ Test data inserted successfully!</p>';
-    } else {
-        echo '<p class="error">✗ Error inserting test data: ' . $mysqli->error . '</p>';
-    }
+        echo '<p class="success">✓ Table created successfully!</p>';
 
-    // Query the table
-    $result = $mysqli->query("SELECT * FROM `$table_name`");
-    if ($result) {
-        echo '<h3>Table Contents:</h3>';
-        echo '<table border="1"><tr><th>ID</th><th>Name</th><th>Description</th><th>Status</th><th>Created At</th></tr>';
-        while ($row = $result->fetch_assoc()) {
-            echo '<tr>';
-            echo '<td>' . $row['id'] . '</td>';
-            echo '<td>' . $row['name'] . '</td>';
-            echo '<td>' . $row['description'] . '</td>';
-            echo '<td>' . $row['status'] . '</td>';
-            echo '<td>' . $row['created_at'] . '</td>';
-            echo '</tr>';
+        // Insert test data
+        $sql = "INSERT INTO `$table_name` (name, description, status) VALUES
+                ('Test Category', 'This is a test category created directly', 'active')";
+
+        if ($mysqli->query($sql)) {
+            echo '<p class="success">✓ Test data inserted successfully!</p>';
+        } else {
+            echo '<p class="error">✗ Error inserting test data: ' . $mysqli->error . '</p>';
         }
-        echo '</table>';
+    } else {
+        echo '<p class="error">✗ Error creating table: ' . $mysqli->error . '</p>';
+        echo '<p>SQL: ' . htmlspecialchars($sql) . '</p>';
     }
+}
 
-} else {
-    echo '<p class="error">✗ Error creating table: ' . $mysqli->error . '</p>';
-    echo '<p>SQL: ' . htmlspecialchars($sql) . '</p>';
+// Always show table contents if it exists
+$result = $mysqli->query("SELECT * FROM `$table_name`");
+if ($result && $result->num_rows > 0) {
+    echo '<h3>Table Contents:</h3>';
+    echo '<table border="1"><tr><th>ID</th><th>Name</th><th>Description</th><th>Status</th><th>Created At</th></tr>';
+    while ($row = $result->fetch_assoc()) {
+        echo '<tr>';
+        echo '<td>' . $row['id'] . '</td>';
+        echo '<td>' . $row['name'] . '</td>';
+        echo '<td>' . $row['description'] . '</td>';
+        echo '<td>' . $row['status'] . '</td>';
+        echo '<td>' . $row['created_at'] . '</td>';
+        echo '</tr>';
+    }
+    echo '</table>';
 }
 
 echo '<h2>Check All Sahayya Tables</h2>';
