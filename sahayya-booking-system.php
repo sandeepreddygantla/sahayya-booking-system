@@ -30,12 +30,32 @@ class SahayyaBookingSystem {
     public function init() {
         // Load text domain for translations
         load_plugin_textdomain('sahayya-booking', false, dirname(plugin_basename(__FILE__)) . '/languages');
-        
+
+        // Check and create database tables if missing
+        $this->check_database_tables();
+
         // Include required files
         $this->includes();
-        
+
         // Initialize hooks
         $this->init_hooks();
+    }
+
+    /**
+     * Check if database tables exist and create them if missing
+     * This ensures tables are created even when plugin is activated via deployment
+     */
+    private function check_database_tables() {
+        $installed_version = get_option('sahayya_booking_db_version', '0');
+
+        // If version doesn't match or tables are missing, create/update them
+        if (version_compare($installed_version, SAHAYYA_BOOKING_VERSION, '<')) {
+            require_once(SAHAYYA_BOOKING_PLUGIN_DIR . 'includes/class-activator.php');
+            Sahayya_Booking_Activator::activate();
+
+            // Update version number
+            update_option('sahayya_booking_db_version', SAHAYYA_BOOKING_VERSION);
+        }
     }
     
     private function includes() {
