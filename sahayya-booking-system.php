@@ -44,7 +44,6 @@ class SahayyaBookingSystem {
         $this->require_file('includes/class-deactivator.php');
         $this->require_file('includes/class-database.php');
         $this->require_file('includes/class-roles.php');
-        $this->require_file('includes/class-diagnostic.php');
         
         // Admin classes
         if (is_admin()) {
