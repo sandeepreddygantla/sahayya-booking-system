@@ -11,9 +11,10 @@ class Sahayya_Booking_Customers {
         $customer_id = isset($_GET['customer_id']) ? intval($_GET['customer_id']) : 0;
         $dependent_id = isset($_GET['dependent_id']) ? intval($_GET['dependent_id']) : 0;
         
-        // Handle form submissions
+        // Handle form submissions FIRST
         if (isset($_POST['submit']) && wp_verify_nonce($_POST['_wpnonce'], 'sahayya_customer_action')) {
             $this->handle_form_submission();
+            return;
         }
         
         switch ($action) {

@@ -37,9 +37,16 @@ class Sahayya_Booking_Employees {
     }
     
     public function render_page() {
-        $action = isset($_GET['action']) ? $_GET['action'] : 'list';
+        // Handle form submissions FIRST
+        if (isset($_POST['submit']) && isset($_POST['employee_nonce']) && wp_verify_nonce($_POST['employee_nonce'], 'sahayya_employee_action')) {
+            $this->handle_form_submission();
+            return;
+        }
+
+        // THEN route to appropriate view
+        $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
         $employee_id = isset($_GET['employee_id']) ? intval($_GET['employee_id']) : 0;
-        
+
         switch ($action) {
             case 'add':
                 $this->render_add_form();
@@ -55,7 +62,27 @@ class Sahayya_Booking_Employees {
                 break;
         }
     }
-    
+
+    private function handle_form_submission() {
+        if (!current_user_can('manage_sahayya_employees')) {
+            wp_die(__('You do not have permission to perform this action.', 'sahayya-booking'));
+        }
+
+        $action = sanitize_text_field($_POST['action']);
+
+        switch ($action) {
+            case 'add_employee':
+                $this->add_employee();
+                break;
+            case 'create_new_employee':
+                $this->create_new_employee();
+                break;
+            case 'edit_employee':
+                $this->edit_employee();
+                break;
+        }
+    }
+
     private function render_employees_list() {
         $stats = Sahayya_Booking_Database::get_employee_stats();
         $employees = Sahayya_Booking_Database::get_employees();
