@@ -268,56 +268,72 @@ class Sahayya_Booking_Activator {
          * These tables can be added in future versions when features are implemented.
          */
 
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        error_log('Sahayya: upgrade.php loaded, starting dbDelta calls');
+        // Use direct SQL queries instead of dbDelta for better compatibility
+        // dbDelta is finicky with different MySQL versions and configurations
+        error_log('Sahayya: Starting direct SQL table creation');
 
-        // Create all actively used tables
-        $result = dbDelta($sql_services);
-        error_log('Sahayya: Services table result: ' . print_r($result, true));
+        $tables_to_create = array(
+            'services' => $sql_services,
+            'categories' => $sql_categories,
+            'dependents' => $sql_dependents,
+            'bookings' => $sql_bookings,
+            'employees' => $sql_employees,
+            'service_extras' => $sql_service_extras,
+            'booking_extras' => $sql_booking_extras,
+            'invoices' => $sql_invoices,
+            'invoice_items' => $sql_invoice_items,
+            'email_notifications' => $sql_email_notifications
+        );
 
-        $result = dbDelta($sql_categories);
-        error_log('Sahayya: Categories table result: ' . print_r($result, true));
+        foreach ($tables_to_create as $table_name => $sql) {
+            // Remove IF NOT EXISTS if present (we'll check manually)
+            $sql = str_replace('CREATE TABLE IF NOT EXISTS', 'CREATE TABLE', $sql);
 
-        $result = dbDelta($sql_dependents);
-        error_log('Sahayya: Dependents table result: ' . print_r($result, true));
+            // Check if table exists first
+            $table_full_name = $wpdb->prefix . 'sahayya_' . str_replace('_', '_', $table_name);
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_full_name'");
 
-        $result = dbDelta($sql_bookings);
-        error_log('Sahayya: Bookings table result: ' . print_r($result, true));
+            if ($table_exists) {
+                error_log("Sahayya: Table $table_full_name already exists, skipping");
+                continue;
+            }
 
-        $result = dbDelta($sql_employees);
-        error_log('Sahayya: Employees table result: ' . print_r($result, true));
+            // Execute the CREATE TABLE query
+            $result = $wpdb->query($sql);
 
-        $result = dbDelta($sql_service_extras);
-        error_log('Sahayya: Service extras table result: ' . print_r($result, true));
-
-        $result = dbDelta($sql_booking_extras);
-        error_log('Sahayya: Booking extras table result: ' . print_r($result, true));
-
-        $result = dbDelta($sql_invoices);
-        error_log('Sahayya: Invoices table result: ' . print_r($result, true));
-
-        $result = dbDelta($sql_invoice_items);
-        error_log('Sahayya: Invoice items table result: ' . print_r($result, true));
-
-        $result = dbDelta($sql_email_notifications);
-        error_log('Sahayya: Email notifications table result: ' . print_r($result, true));
+            if ($result === false) {
+                error_log("Sahayya: FAILED to create $table_name table. Error: " . $wpdb->last_error);
+                error_log("Sahayya: SQL was: " . substr($sql, 0, 200) . "...");
+            } else {
+                error_log("Sahayya: Successfully created $table_name table");
+            }
+        }
         
         // Email logs table
         $table_email_logs = $wpdb->prefix . 'sahayya_email_logs';
-        $sql_email_logs = "CREATE TABLE $table_email_logs (
-            id int(11) NOT NULL AUTO_INCREMENT,
-            recipient varchar(255) NOT NULL,
-            subject varchar(500) NOT NULL,
-            template varchar(100) NOT NULL,
-            status enum('sent','failed') DEFAULT 'sent',
-            sent_at datetime DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY recipient (recipient),
-            KEY template (template),
-            KEY status (status)
-        ) $charset_collate;";
-        
-        dbDelta($sql_email_logs);
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_email_logs'");
+
+        if (!$table_exists) {
+            $sql_email_logs = "CREATE TABLE $table_email_logs (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                recipient varchar(255) NOT NULL,
+                subject varchar(500) NOT NULL,
+                template varchar(100) NOT NULL,
+                status enum('sent','failed') DEFAULT 'sent',
+                sent_at datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY recipient (recipient),
+                KEY template (template),
+                KEY status (status)
+            ) $charset_collate;";
+
+            $result = $wpdb->query($sql_email_logs);
+            if ($result === false) {
+                error_log("Sahayya: FAILED to create email_logs table. Error: " . $wpdb->last_error);
+            } else {
+                error_log("Sahayya: Successfully created email_logs table");
+            }
+        }
         
         // Insert default service categories
         self::insert_default_categories();
