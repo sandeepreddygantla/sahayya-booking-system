@@ -273,25 +273,24 @@ class Sahayya_Booking_Activator {
         error_log('Sahayya: Starting direct SQL table creation');
 
         $tables_to_create = array(
-            'services' => $sql_services,
-            'categories' => $sql_categories,
-            'dependents' => $sql_dependents,
-            'bookings' => $sql_bookings,
-            'employees' => $sql_employees,
-            'service_extras' => $sql_service_extras,
-            'booking_extras' => $sql_booking_extras,
-            'invoices' => $sql_invoices,
-            'invoice_items' => $sql_invoice_items,
-            'email_notifications' => $sql_email_notifications
+            $wpdb->prefix . 'sahayya_services' => $sql_services,
+            $wpdb->prefix . 'sahayya_service_categories' => $sql_categories,
+            $wpdb->prefix . 'sahayya_dependents' => $sql_dependents,
+            $wpdb->prefix . 'sahayya_bookings' => $sql_bookings,
+            $wpdb->prefix . 'sahayya_employees' => $sql_employees,
+            $wpdb->prefix . 'sahayya_service_extras' => $sql_service_extras,
+            $wpdb->prefix . 'sahayya_booking_extras' => $sql_booking_extras,
+            $wpdb->prefix . 'sahayya_invoices' => $sql_invoices,
+            $wpdb->prefix . 'sahayya_invoice_items' => $sql_invoice_items,
+            $wpdb->prefix . 'sahayya_email_notifications' => $sql_email_notifications
         );
 
-        foreach ($tables_to_create as $table_name => $sql) {
+        foreach ($tables_to_create as $table_full_name => $sql) {
             // Remove IF NOT EXISTS if present (we'll check manually)
             $sql = str_replace('CREATE TABLE IF NOT EXISTS', 'CREATE TABLE', $sql);
 
             // Check if table exists first
-            $table_full_name = $wpdb->prefix . 'sahayya_' . str_replace('_', '_', $table_name);
-            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_full_name'");
+            $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_full_name));
 
             if ($table_exists) {
                 error_log("Sahayya: Table $table_full_name already exists, skipping");
@@ -302,16 +301,16 @@ class Sahayya_Booking_Activator {
             $result = $wpdb->query($sql);
 
             if ($result === false) {
-                error_log("Sahayya: FAILED to create $table_name table. Error: " . $wpdb->last_error);
+                error_log("Sahayya: FAILED to create $table_full_name table. Error: " . $wpdb->last_error);
                 error_log("Sahayya: SQL was: " . substr($sql, 0, 200) . "...");
             } else {
-                error_log("Sahayya: Successfully created $table_name table");
+                error_log("Sahayya: Successfully created $table_full_name table");
             }
         }
         
         // Email logs table
         $table_email_logs = $wpdb->prefix . 'sahayya_email_logs';
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_email_logs'");
+        $table_exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table_email_logs));
 
         if (!$table_exists) {
             $sql_email_logs = "CREATE TABLE $table_email_logs (
