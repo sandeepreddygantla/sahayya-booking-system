@@ -5,25 +5,43 @@ if (!defined('ABSPATH')) {
 }
 
 class Sahayya_Booking_Categories {
-    
+
+    public function __construct() {
+        add_action('admin_notices', array($this, 'show_admin_notices'));
+        // Handle form submissions early during admin_init to allow redirects
+        add_action('admin_init', array($this, 'handle_early_form_submission'));
+    }
+
+    public function handle_early_form_submission() {
+        // Only process on our categories page
+        if (!isset($_GET['page']) || $_GET['page'] !== 'sahayya-booking-categories') {
+            return;
+        }
+
+        // Handle POST form submissions
+        if (isset($_POST['submit']) && isset($_POST['_wpnonce']) && wp_verify_nonce($_POST['_wpnonce'], 'sahayya_category_action')) {
+            $this->handle_form_submission();
+            // handle_form_submission() will redirect and exit
+        }
+
+        // Handle GET delete action
+        if (isset($_GET['action']) && $_GET['action'] === 'delete' && isset($_GET['category_id'])) {
+            $category_id = intval($_GET['category_id']);
+            $this->handle_delete_category($category_id);
+            // handle_delete_category() will redirect and exit
+        }
+    }
+
     public function render_page() {
         $action = isset($_GET['action']) ? sanitize_text_field($_GET['action']) : 'list';
         $category_id = isset($_GET['category_id']) ? intval($_GET['category_id']) : 0;
-        
-        // Handle form submissions
-        if (isset($_POST['submit']) && wp_verify_nonce($_POST['_wpnonce'], 'sahayya_category_action')) {
-            $this->handle_form_submission();
-        }
-        
+
         switch ($action) {
             case 'add':
                 $this->render_add_category_form();
                 break;
             case 'edit':
                 $this->render_edit_category_form($category_id);
-                break;
-            case 'delete':
-                $this->handle_delete_category($category_id);
                 break;
             default:
                 $this->render_categories_list();
@@ -40,9 +58,7 @@ class Sahayya_Booking_Categories {
             <a href="<?php echo admin_url('admin.php?page=sahayya-booking-categories&action=add'); ?>" class="page-title-action">
                 <?php _e('Add New Category', 'sahayya-booking'); ?>
             </a>
-            
-            <?php $this->show_messages(); ?>
-            
+
             <div class="categories-overview">
                 <div class="categories-stats">
                     <div class="stat-box">
@@ -324,14 +340,16 @@ class Sahayya_Booking_Categories {
     
     private function handle_add_category() {
         $category_data = $this->sanitize_category_data($_POST);
-        
+
         $category_id = Sahayya_Booking_Database::create_category($category_data);
-        
+
         if ($category_id) {
-            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories&message=category_added'));
+            set_transient('sahayya_category_notice_' . get_current_user_id(), array('type' => 'success', 'message' => 'category_added'), 30);
+            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories'));
             exit;
         } else {
-            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories&action=add&error=db_error'));
+            set_transient('sahayya_category_notice_' . get_current_user_id(), array('type' => 'error', 'message' => 'db_error'), 30);
+            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories&action=add'));
             exit;
         }
     }
@@ -339,14 +357,16 @@ class Sahayya_Booking_Categories {
     private function handle_edit_category() {
         $category_id = intval($_POST['category_id']);
         $category_data = $this->sanitize_category_data($_POST);
-        
+
         $result = Sahayya_Booking_Database::update_category($category_id, $category_data);
-        
+
         if ($result !== false) {
-            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories&message=category_updated'));
+            set_transient('sahayya_category_notice_' . get_current_user_id(), array('type' => 'success', 'message' => 'category_updated'), 30);
+            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories'));
             exit;
         } else {
-            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories&action=edit&category_id=' . $category_id . '&error=db_error'));
+            set_transient('sahayya_category_notice_' . get_current_user_id(), array('type' => 'error', 'message' => 'db_error'), 30);
+            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories&action=edit&category_id=' . $category_id));
             exit;
         }
     }
@@ -355,20 +375,22 @@ class Sahayya_Booking_Categories {
         if (!wp_verify_nonce($_GET['_wpnonce'], 'delete_category_' . $category_id)) {
             wp_die(__('Security check failed.', 'sahayya-booking'));
         }
-        
+
         // Check if category has services
         if (Sahayya_Booking_Database::get_category_services_count($category_id) > 0) {
-            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories&error=category_has_services'));
+            set_transient('sahayya_category_notice_' . get_current_user_id(), array('type' => 'error', 'message' => 'category_has_services'), 30);
+            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories'));
             exit;
         }
-        
+
         $result = Sahayya_Booking_Database::delete_category($category_id);
-        
+
         if ($result) {
-            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories&message=category_deleted'));
+            set_transient('sahayya_category_notice_' . get_current_user_id(), array('type' => 'success', 'message' => 'category_deleted'), 30);
         } else {
-            wp_redirect(admin_url('admin.php?page=sahayya-booking-categories&error=delete_failed'));
+            set_transient('sahayya_category_notice_' . get_current_user_id(), array('type' => 'error', 'message' => 'delete_failed'), 30);
         }
+        wp_redirect(admin_url('admin.php?page=sahayya-booking-categories'));
         exit;
     }
     
@@ -380,30 +402,40 @@ class Sahayya_Booking_Categories {
         );
     }
     
-    private function show_messages() {
-        if (isset($_GET['message'])) {
-            $message = sanitize_text_field($_GET['message']);
+    private function get_services_count($category_id) {
+        return Sahayya_Booking_Database::get_category_services_count($category_id);
+    }
+
+    public function show_admin_notices() {
+        // Only show on our plugin pages
+        if (!isset($_GET['page']) || $_GET['page'] !== 'sahayya-booking-categories') {
+            return;
+        }
+
+        // Check for transient-based messages first (preferred method)
+        $notice = get_transient('sahayya_category_notice_' . get_current_user_id());
+        if ($notice) {
+            delete_transient('sahayya_category_notice_' . get_current_user_id());
+
             $messages = array(
                 'category_added' => __('Category added successfully!', 'sahayya-booking'),
                 'category_updated' => __('Category updated successfully!', 'sahayya-booking'),
                 'category_deleted' => __('Category deleted successfully!', 'sahayya-booking')
             );
-            
-            if (isset($messages[$message])) {
-                echo '<div class="notice notice-success is-dismissible"><p>' . $messages[$message] . '</p></div>';
-            }
-        }
-        
-        if (isset($_GET['error'])) {
-            $error = sanitize_text_field($_GET['error']);
+
             $errors = array(
                 'db_error' => __('Database error occurred. Please try again.', 'sahayya-booking'),
                 'category_has_services' => __('Cannot delete category that contains services. Please move or delete the services first.', 'sahayya-booking'),
                 'delete_failed' => __('Failed to delete category. Please try again.', 'sahayya-booking')
             );
-            
-            if (isset($errors[$error])) {
-                echo '<div class="notice notice-error is-dismissible"><p>' . $errors[$error] . '</p></div>';
+
+            $message_text = '';
+            if ($notice['type'] === 'success' && isset($messages[$notice['message']])) {
+                $message_text = $messages[$notice['message']];
+                echo '<div class="notice notice-success is-dismissible"><p>' . esc_html($message_text) . '</p></div>';
+            } elseif ($notice['type'] === 'error' && isset($errors[$notice['message']])) {
+                $message_text = $errors[$notice['message']];
+                echo '<div class="notice notice-error is-dismissible"><p>' . esc_html($message_text) . '</p></div>';
             }
         }
     }

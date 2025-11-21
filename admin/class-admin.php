@@ -5,7 +5,9 @@ if (!defined('ABSPATH')) {
 }
 
 class Sahayya_Booking_Admin {
-    
+
+    private $categories_instance = null;
+
     public function __construct() {
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'admin_init'));
@@ -31,6 +33,12 @@ class Sahayya_Booking_Admin {
         if (is_admin() && isset($_GET['page']) && $_GET['page'] === 'sahayya-booking-employees') {
             require_once SAHAYYA_BOOKING_PLUGIN_DIR . 'admin/class-employees.php';
             new Sahayya_Booking_Employees();
+        }
+
+        // Initialize categories management early to handle form submissions and admin notices
+        if (is_admin() && isset($_GET['page']) && $_GET['page'] === 'sahayya-booking-categories') {
+            require_once SAHAYYA_BOOKING_PLUGIN_DIR . 'admin/class-categories.php';
+            $this->categories_instance = new Sahayya_Booking_Categories();
         }
     }
     
@@ -314,12 +322,15 @@ class Sahayya_Booking_Admin {
     }
     
     public function categories_page() {
-        if (!class_exists('Sahayya_Booking_Categories')) {
-            require_once SAHAYYA_BOOKING_PLUGIN_DIR . 'admin/class-categories.php';
+        // Reuse existing instance if already created, otherwise create new one
+        if ($this->categories_instance === null) {
+            if (!class_exists('Sahayya_Booking_Categories')) {
+                require_once SAHAYYA_BOOKING_PLUGIN_DIR . 'admin/class-categories.php';
+            }
+            $this->categories_instance = new Sahayya_Booking_Categories();
         }
-        
-        $categories_admin = new Sahayya_Booking_Categories();
-        $categories_admin->render_page();
+
+        $this->categories_instance->render_page();
     }
     
     public function employees_page() {
